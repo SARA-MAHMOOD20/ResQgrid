@@ -2,7 +2,7 @@
 File:       README.md
 Owner:      Farwa
 Purpose:    How to build, run and contribute to ResQGrid; who owns what.
-Depends on: docs/report.pdf, docs/ResQGrid_Development_Plan.pdf, docs/project_spec.pdf
+Depends on: docs/report.pdf, docs/project_spec.pdf (the development plan is shared privately, never committed)
 Used by:    everyone, and the evaluator ("clean clone builds and runs from README alone")
 Milestone:  M0 (skeleton) -> M5 (final build/run/format sections)
 -->
@@ -139,7 +139,7 @@ resqgrid/
 |   |-- test_router.cpp                Rabia   (MinHeap, Environment, Router)
 |   `-- test_coordinator.cpp           Sara    (IndexedMaxHeap, Coordinator, Scenario 01 run)
 |-- data/                              scenario files (do not edit, except the scenario_04 fix below)
-|-- docs/                              report.pdf, ResQGrid_Development_Plan.pdf, project_spec.pdf
+|-- docs/                              report.pdf, project_spec.pdf (the development plan is NOT in the repo)
 `-- output/                            logs are written here (gitignored except .gitkeep)
 ```
 
