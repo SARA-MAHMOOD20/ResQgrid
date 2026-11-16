@@ -15,49 +15,148 @@ Simulation::Simulation()
       movement(world, router, logger) {}
 
 bool Simulation::load(const Str& path) {
-    // TODO(Sara): see Simulation.h (also reset stats and finished).
-    // See: report Section 9.4   |   Done when: invalid files return false; provided file returns true
-    finished = false;
+    stats.reset();
+    runTimeMs = 0.0;
+
+    loaded = loader.load(path, world);
+    if (!loaded) {
+        finished = true;            // nothing to run
+        return false;
+    }
+
+    // Start of the run: time 0, nothing reported, no event applied yet.
     world.currentTime = 0;
-    return loader.load(path, world);
+    world.nextRequest = 0;
+    world.nextEvent = 0;
+    world.networkChangedThisStep = false;
+
+    coord.init();                   // heap sized for every request
+    finished = false;
+    return true;
 }
 
 bool Simulation::step() {
-    // TODO(Sara): phases 1-7 in order (see Simulation.h), then termination check.
-    // See: report Sections 4.2 and 4.8   |   Done when: Scenario 01 ends at t=28
     if (finished) {
         return false;
     }
-    finish();   // stub: no phases yet, so end immediately
+
+    // Measure only the time spent simulating (works for console and GUI).
+    chrono::steady_clock::time_point start = chrono::steady_clock::now();
+
+    int t = world.currentTime;
+    logger.setTime(t);
+
+    // 1. Events of this step, in file order.
+    events.applyEventsAt(t);
+
+    // 2. New requests of this step become PENDING, in file order.
+    releaseNewRequests(t);
+
+    // 3. Reroute, once, after ALL events (so block + unblock in one step does nothing).
+    if (world.networkChangedThisStep) {
+        rerouter.rerouteAffected();
+    }
+
+    // 4. Assignment (Algorithm 2).
+    coord.assignStep();
+
+    // 5. Idle robots with low battery go to a charger.
+    movement.lowBatteryCheck();
+
+    // 6. Robots act in ID order: move, work or recharge.
+    movement.actAll(t);
+
+    // 7. Record: every module above already wrote its log lines.
+
+    chrono::steady_clock::time_point end = chrono::steady_clock::now();
+    runTimeMs += chrono::duration<double, milli>(end - start).count();
+
+    // Termination check (Report 4.8). The step that meets it is the last one.
+    if (t >= world.params.maxSteps || allDone()) {
+        finish();                   // currentTime stays at the last step run
+    } else {
+        world.currentTime = t + 1;
+    }
     return true;
 }
 
 void Simulation::runAll() {
-    // TODO(Sara): measure with chrono::steady_clock around the step() loop; store runTimeMs
-    // BEFORE finish() runs so stats get it (or pass it in).
-    // See: report Section 4.8   |   Done when: Scenario 01 ends at t=28
-    auto start = chrono::steady_clock::now();
     while (step()) {
+        // each call runs one step; step() returns false once finished
     }
-    auto end = chrono::steady_clock::now();
-    runTimeMs = chrono::duration<double, milli>(end - start).count();
 }
 
 void Simulation::releaseNewRequests(int t) {
-    // TODO(Sara): see Simulation.h.
-    // See: report Section 4.2 (phase 2)   |   Done when: same-time requests enter in file order
-    (void)t;
+    // Requests are sorted by report time, so the new ones are at the cursor.
+    while (world.nextRequest < world.requests.size()
+           && world.requests[world.nextRequest].reportTime <= t) {
+        int index = world.nextRequest;
+        Request& q = world.requests[index];
+
+        q.reported = true;              // its state is already PENDING (starting state)
+        q.remainingWork = q.duration;
+
+        logger.newRequest(q.id, world.env.locations[q.location].id, q.category, q.urgency);
+        coord.addPending(index);
+
+        world.nextRequest++;
+    }
 }
 
 bool Simulation::allDone() const {
-    // TODO(Sara): every request finished && nextRequest == requests.size() && nextEvent == events.size().
-    // See: report Section 4.8   |   Done when: Scenario 01 stops at t=28
+    if (world.nextRequest < world.requests.size()) {
+        return false;               // some requests are still to be reported
+    }
+    if (world.nextEvent < world.events.size()) {
+        return false;               // some events are still to come
+    }
+    for (int i = 0; i < world.requests.size(); ++i) {
+        if (!world.requests[i].isFinished()) {
+            return false;
+        }
+    }
     return true;
 }
 
 void Simulation::finish() {
-    // TODO(Sara): fail leftovers with a reason; stats.addCounters(...); stats.finalize(...).
-    // See: report Sections 4.3 and 4.8   |   Done when: Scenario 02 leftovers FAILED with a reason
-    stats.finalize(world.robots, world.requests, world.currentTime, runTimeMs);
+    // Every request that is not COMPLETED becomes FAILED (Report 4.3).
+    for (int i = 0; i < world.requests.size(); ++i) {
+        Request& q = world.requests[i];
+        if (q.isFinished()) {
+            continue;
+        }
+
+        // Reason: no route existed -> unreachable; otherwise no robot was free in time.
+        if (q.unreachable) {
+            q.failReason = FailReason::UNREACHABLE;
+        } else {
+            q.failReason = FailReason::NOT_SERVED;
+        }
+
+        // A request still with a robot is released first (ASSIGNED / IN_PROGRESS
+        // -> PENDING), because the state machine only allows PENDING -> FAILED.
+        if (q.assignedRobot != NO_INDEX) {
+            world.robots[q.assignedRobot].assignedRequest = NO_INDEX;
+            q.assignedRobot = NO_INDEX;
+            q.setState(RequestState::PENDING);
+        }
+        // (A request never reported is still PENDING, its starting state.)
+
+        RequestState old = q.state;
+        if (q.setState(RequestState::FAILED)) {
+            logger.fail(q.id, q.failReason);
+        } else {
+            logger.invalidTransition("request", q.id, toString(old), toString(RequestState::FAILED));
+        }
+    }
+
+    // Copy the counters each module kept, then compute the final metrics.
+    int reassignments = rerouter.reassignmentCount() + events.reassignmentCount();
+    stats.addCounters(rerouter.rerouteCount(), coord.conflictCount(), reassignments,
+                      coord.batteryRejectionCount(), router.runs());
+
+    int stepsRun = world.currentTime + 1;   // steps 0 .. currentTime
+    stats.finalize(world.robots, world.requests, stepsRun, runTimeMs);
+
     finished = true;
 }

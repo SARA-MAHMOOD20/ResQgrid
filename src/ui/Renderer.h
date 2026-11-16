@@ -1,14 +1,21 @@
 // File:       src/ui/Renderer.h
 // Owner:      Sara
-// Purpose:    Draws the current World with SFML 3: roads (blocked in red),
-//             locations by type, robots (including partway along a road),
-//             requests by urgency.
+// Purpose:    Draws the current World with SFML 3, styled as an Islamabad-like
+//             city (sector blocks, green belts, Margalla Hills to the north)
+//             in a warm Big Hero 6 palette: roads (blocked in red), locations
+//             by type, the remaining route of moving robots, requests by
+//             urgency, robots (including partway along a road) with a battery bar.
+//             The city look is decoration only: it never changes the map data.
 // Depends on: World (read only), GraphLayout, SFML 3 Graphics
 // Used by:    UIApp
 // Milestone:  M2 (loaded map drawn), M4 (polish)
 //
-// SFML 3 notes: sf::Font::openFromFile (not loadFromFile); sf::Text needs a
-// font in its constructor; positions are sf::Vector2f.
+// Sprites are optional: if <folder>/robot.png or <folder>/person.png is
+// missing, plain shapes are drawn instead. robot.png should be light/white:
+// it is tinted with the robot's capability colour.
+// SFML 3 notes: sf::Font::openFromFile, sf::Texture::loadFromFile return
+// bool; sf::Text and sf::Sprite have no default constructor, so they are
+// created where they are drawn.
 #ifndef RESQGRID_RENDERER_H
 #define RESQGRID_RENDERER_H
 
@@ -21,43 +28,59 @@ class Renderer {
 public:
     explicit Renderer(sf::RenderTarget& target);
 
-    // TODO(Sara): font.openFromFile(path); remember whether it worked
-    // (labels are skipped if no font is available).
-    // See: plan Section 6 (Renderer)   |   Done when: location IDs visible on screen
+    // Loads a .ttf font; labels are skipped if this fails.
     bool loadFont(const Str& path);
 
-    // TODO(Sara): drawRoads, drawLocations, drawRequests, drawRobots (that order: robots on top).
-    // See: plan Section 6   |   Done when: provided file is readable on screen
+    // Loads robot.png and person.png from `folder`. Returns how many loaded (0-2).
+    int loadSprites(const Str& folder);
+
+    // Rectangle of the window where the map is drawn.
+    void setMapArea(const sf::FloatRect& area) { mapArea = area; }
+
+    // Draws everything, back to front: roads, routes, locations, requests, robots.
     void draw(const World& world, const GraphLayout& layout);
+
+    // Screen position of a location (layout 0..1 scaled into the map area).
+    sf::Vector2f toScreen(const GraphLayout& layout, int loc) const;
 
     bool hasFont() const { return fontLoaded; }
     const sf::Font& getFont() const { return font; }
 
+    // Shared colours (the UI panels use the same ones).
+    static sf::Color capabilityColor(Capability cap);
+    static sf::Color stateColor(RobotState state);
+    static sf::Color urgencyColor(int urgency);
+
 private:
-    // TODO(Sara): one line per connection; OPEN grey, BLOCKED red.
-    // See: plan Section 6   |   Done when: blocked roads stand out
+    // Background: green belts, Margalla Hills along the top and, for grid
+    // maps, one sector block per grid cell labelled like Islamabad (letters
+    // north to south starting at D, numbers growing towards the west).
+    void drawCity(const World& world, const GraphLayout& layout);
     void drawRoads(const World& world, const GraphLayout& layout);
-
-    // TODO(Sara): one shape/colour per LocationType; down chargers look different.
-    // See: plan Section 6   |   Done when: every location type is recognisable
+    void drawRoutes(const World& world, const GraphLayout& layout);
     void drawLocations(const World& world, const GraphLayout& layout);
-
-    // TODO(Sara): marker at the request location, colour by urgency 1-5; only reported, unfinished ones.
-    // See: plan Section 6   |   Done when: pending requests visible by urgency
     void drawRequests(const World& world, const GraphLayout& layout);
-
-    // TODO(Sara): circle per robot at robotPosition(); colour by state.
-    // See: plan Section 6   |   Done when: robots move smoothly along roads
     void drawRobots(const World& world, const GraphLayout& layout);
 
-    // TODO(Sara): at a location -> its point; on a road -> interpolate between
-    // the two ends by progress / cost.
-    // See: report Section 4.1 (position on a road)   |   Done when: robot drawn partway along a road
+    // At a location -> its point; on a road -> between the two ends,
+    // progress / cost of the way from `location` (Report 4.1).
     sf::Vector2f robotPosition(const World& world, const Robot& robot, const GraphLayout& layout) const;
+
+    // A straight line `thickness` pixels wide (a thin four-cornered shape).
+    void drawLine(sf::Vector2f a, sf::Vector2f b, float thickness, sf::Color color);
+
+    // Text centred on a point (does nothing without a font).
+    void drawLabel(const Str& text, sf::Vector2f centre, unsigned size, sf::Color color);
 
     sf::RenderTarget& target;
     sf::Font          font;
     bool              fontLoaded = false;
+    sf::Texture       robotTexture;
+    bool              hasRobotSprite = false;
+    sf::Texture       personTexture;
+    bool              hasPersonSprite = false;
+    sf::FloatRect     mapArea;
+    float             radius = 7.0f;      // location size, set from the map size in draw()
 };
 
 #endif // RESQGRID_RENDERER_H

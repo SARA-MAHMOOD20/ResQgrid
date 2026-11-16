@@ -76,7 +76,8 @@ target_link_libraries(resqgrid PRIVATE resqgrid_core)
 resqgrid_warnings(resqgrid)
 if(RESQGRID_HAS_GUI)
     target_sources(resqgrid PRIVATE src/ui/Renderer.cpp src/ui/UIApp.cpp)
-    target_compile_definitions(resqgrid PRIVATE RESQGRID_HAS_GUI)
+    target_compile_definitions(resqgrid PRIVATE RESQGRID_HAS_GUI
+        RESQGRID_UI_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui")      # fonts/ and sprites/
     target_link_libraries(resqgrid PRIVATE SFML::Graphics SFML::Window SFML::System)
 endif()
 

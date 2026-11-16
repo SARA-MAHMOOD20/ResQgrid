@@ -29,28 +29,26 @@ class Coordinator {
 public:
     Coordinator(World& world, Router& router, Logger& log);
 
-    // TODO(Sara): pending.init(world.requests.size()). Call once after loading.
-    // See: report Section 5.6   |   Done when: heap ready for every request index
+    // Prepares the heap for every request index and resets the counters.
+    // Call once after loading.
     void init();
 
-    // Phase 2 helper: request becomes PENDING and enters the heap with its key.
-    // TODO(Sara): pending.insert(i, requests[i].priorityKey(A), requests[i].id).
-    // See: report Sections 4.2 and 5.6   |   Done when: Scenario 03 t=0 assignment order matches
+    // Phase 2 helper: puts request `requestIndex` into the heap with
+    // key = A * urgency - reportTime and its ID as the tie-breaker.
     void addPending(int requestIndex);
 
-    // TODO(Sara): Algorithm 2 (Report 6.2):
-    //   countFreeRobots(); deferred = empty
+    // Phase 4, Algorithm 2 (Report 6.2):
+    //   count free robots; deferred = empty
     //   while heap not empty and some robot AVAILABLE:
     //     r = extractMax
-    //     if no free robot can serve r.category, or (r.unreachable and network
-    //        version unchanged since r.unreachableVersion): defer, continue
-    //     router.run(r.location)  (ONE Dijkstra, from the request)
+    //     if no free robot can serve r.category, or (r unreachable and network
+    //        version unchanged since then): defer, continue
+    //     Dijkstra ONCE from r.location
     //     best = chooseRobot(r)   (logs each battery rejection)
-    //     if best: assign, build route from pred (router.routeFrom), log ASSIGN
-    //     else: mark unreachable if no capable robot had a route; defer
+    //     if best: assign r to best
+    //     else: mark r unreachable if no capable robot had a route; defer
     //   put every deferred request back into the heap
     // No head-of-line blocking: an unservable request never stops the loop.
-    // See: report Section 6.2 (Algorithm 2)   |   Done when: Scenario 03 t=0 assignment order matches
     void assignStep();
 
     IndexedMaxHeap&       pending()       { return pendingHeap; }
@@ -60,33 +58,33 @@ public:
     int batteryRejectionCount() const { return batteryRejections; }
 
 private:
-    // TODO(Sara): recount freeCount[cap] = number of AVAILABLE robots per capability.
-    // See: report Section 5.9 (free-robot counters)   |   Done when: O(1) check before each Dijkstra
+    // freeCount[cap] = number of AVAILABLE robots with that capability (Report 5.9).
     void countFreeRobots();
 
-    // TODO(Sara): true if some AVAILABLE robot has this capability or GENERAL.
-    // See: report Section 5.9   |   Done when: SUPPLY request waits while only GENERAL robot is busy (Scenario 01)
+    // True if at least one robot (any capability) is AVAILABLE.
+    bool anyRobotFree() const;
+
+    // True if some AVAILABLE robot has this capability or is GENERAL. O(1).
     bool someoneCanServe(Category cat) const;
 
-    // TODO(Sara): battery needed per the feasibility rule in Report 4.5.
-    // See: report Section 4.5   |   Done when: Scenario 01 gives need=13 and need=15 for Robot 2
+    // Battery needed for a job, feasibility rule of Report 4.5.
     int batteryNeeded(int distToRequest, int distToCharger, int duration) const;
 
-    // TODO(Sara): scan robots, apply the candidate filter and tie-breaks, log
-    // each REJECT, count a conflict if > 1 candidate. Return robot index or NO_INDEX.
-    // Set `anyCapableReachable` so assignStep knows whether to mark unreachable.
-    // See: report Section 6.2   |   Done when: Scenario 03 tie-breaks match
+    // Uses the Dijkstra result of the last router.run(request location).
+    // Applies the candidate filter, logs each REJECT, counts a conflict when
+    // there is more than one candidate. Returns the winning robot index or
+    // NO_INDEX. anyCapableReachable = some capable robot (in any state) can
+    // reach the request; if false the request is marked unreachable.
     int chooseRobot(int requestIndex, bool& anyCapableReachable);
 
-    // TODO(Sara): true if robot a beats robot b (rules 1-4 above), given their distances.
-    // See: report Section 6.2   |   Done when: Scenario 03 "two robots at equal distance" matches
+    // True if robot a beats robot b (tie-break rules 1-4), given their distances.
     bool better(int robotA, int distA, int robotB, int distB) const;
 
-    // TODO(Sara): link both sides, request -> ASSIGNED, robot -> TRAVELLING
-    // (a zero-length route still goes through TRAVELLING; it starts work next step,
-    // Report 4.1), fill the route, decrement freeCount, log.
-    // See: report Sections 4.3, 4.4 and 6.2   |   Done when: Scenario 01 t=0 lines match
-    void assign(int requestIndex, int robotIndex);
+    // Links request and robot, request -> ASSIGNED, robot -> TRAVELLING, fills
+    // the robot's route from the predecessor array, logs ASSIGN. A zero-length
+    // route still goes through TRAVELLING; work starts next step (Report 4.1).
+    // Returns false (nothing changed) if a state transition is not allowed.
+    bool assign(int requestIndex, int robotIndex);
 
     World&         world;
     Router&        router;

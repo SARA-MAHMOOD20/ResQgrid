@@ -5,6 +5,10 @@
 # Used by:    git
 # Milestone:  M0
 
+# Development plan: private to the team, NEVER commit it (any folder, any copy)
+*Development_Plan*
+*development_plan*
+
 # Build folders
 build/
 build-*/
