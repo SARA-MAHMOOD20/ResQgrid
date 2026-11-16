@@ -15,10 +15,11 @@
 //   4. Assignment    Coordinator::assignStep()
 //   5. Low battery   Movement::lowBatteryCheck()
 //   6. Action        Movement::actAll(t)          (robots in ID order)
-//   7. Record        log lines / statistics for the step
-// Termination (Report 4.8): stop at the first step where t == maxSteps, or
-// every request is COMPLETED/FAILED with no requests still to be reported and
-// no events left. Then every unfinished request becomes FAILED (Report 4.3).
+//   7. Record        every module already wrote its log lines; nothing extra
+// Termination (Report 4.8): stop after the first step t where t == maxSteps,
+// or where every request is COMPLETED/FAILED, no request is still to be
+// reported and no event is left. Then every unfinished request becomes
+// FAILED with a reason (Report 4.3) and the statistics are computed.
 #ifndef RESQGRID_SIMULATION_H
 #define RESQGRID_SIMULATION_H
 
@@ -36,23 +37,21 @@ class Simulation {
 public:
     Simulation();
 
-    // TODO(Sara): loader.load(path, world); on success coord.init(), reset the
-    // clock, stats and finished flag. Returns false if the file had errors
-    // (read them through loader()).
-    // See: report Section 9.4   |   Done when: invalid files return false; provided file returns true
+    // Loads and validates the file. Returns false if it had errors (read them
+    // with getLoader()); a failed load leaves the simulation finished, so
+    // step() does nothing. Load once per Simulation object.
     bool load(const Str& path);
 
-    // TODO(Sara): if finished return false; logger.setTime(t); run phases 1-7;
-    // check termination (finish() if met); otherwise ++currentTime. Returns
-    // true if a step was executed. The UI calls this once per tick.
-    // See: report Sections 4.2 and 4.8   |   Done when: Scenario 01 ends at t=28
+    // Runs ONE full step (phases 1-7) at the current time, then checks the
+    // termination rule. Returns true if a step was run, false if the
+    // simulation was already finished. The UI calls this once per tick.
     bool step();
 
-    // TODO(Sara): time the whole run with <chrono>; call step() until finished.
-    // See: report Section 4.8   |   Done when: Scenario 01 ends at t=28; two runs give identical logs
+    // Calls step() until the simulation is finished (console mode).
     void runAll();
 
     bool isFinished() const { return finished; }
+    bool isLoaded() const   { return loaded; }
 
     // --- read-only access for main.cpp and the UI ---
     int                   currentTime() const { return world.currentTime; }
@@ -66,18 +65,14 @@ public:
     Logger& log() { return logger; }
 
 private:
-    // TODO(Sara): phase 2 - advance world.nextRequest while reportTime == t:
-    // reported = true, remainingWork = duration, log REQUEST, coord.addPending.
-    // See: report Section 4.2 (phase 2)   |   Done when: same-time requests enter in file order
+    // Phase 2: every request with reportTime == t becomes visible (PENDING)
+    // and goes into the heap, in file order.
     void releaseNewRequests(int t);
 
-    // TODO(Sara): termination rule 2 (all finished, nothing left to report, no events left).
-    // See: report Section 4.8   |   Done when: Scenario 01 stops at t=28, not at max_steps
+    // Termination rule 2: all requests finished, none left to report, no events left.
     bool allDone() const;
 
-    // TODO(Sara): mark unfinished requests FAILED (reason unreachable / not served),
-    // copy module counters into stats (addCounters), stats.finalize, finished = true.
-    // See: report Sections 4.3 and 4.8   |   Done when: Scenario 02 leftover requests FAILED with a reason
+    // End of run: fail unfinished requests, compute the statistics.
     void finish();
 
     // Member order matters: world and logger must be constructed before the
@@ -91,8 +86,9 @@ private:
     EventProcessor events;
     Rerouter       rerouter;
     Movement       movement;
+    bool           loaded = false;
     bool           finished = false;
-    double         runTimeMs = 0.0;
+    double         runTimeMs = 0.0;   // sum of the time spent inside step()
 };
 
 #endif // RESQGRID_SIMULATION_H
