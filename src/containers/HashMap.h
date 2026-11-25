@@ -27,35 +27,89 @@ public:
 
     HashMap() : entryCount(0) {}
 
-    // TODO(Rabia): choose m = smallest prime >= 2 * expectedCount (at least 2),
-    // create m empty buckets, entryCount = 0. Call before the first insert.
-    // See: report Section 5.3   |   Done when: buckets().size() is prime and >= 2 * expectedCount
-    void init(int expectedCount) { (void)expectedCount; }
+    // Choose m = smallest prime >= 2 * expectedCount (at least 2) and make m
+    // empty buckets. Call before the first insert.
+    void init(int expectedCount) {
+        int m = 2 * expectedCount;
+        if (m < 2) {
+            m = 2;
+        }
+        // go up from m until we hit a prime
+        while (true) {
+            bool prime = true;
+            for (int d = 2; d * d <= m; d++) {
+                if (m % d == 0) {
+                    prime = false;
+                    break;
+                }
+            }
+            if (prime) {
+                break;
+            }
+            m++;
+        }
+        buckets.assign(m, LinkedList<Entry>());
+        entryCount = 0;
+    }
 
-    // TODO(Rabia): if `key` is already present return false (do NOT overwrite);
-    // otherwise append {key, value} to bucket h(key) and return true.
-    // See: report Section 5.3   |   Done when: duplicate insert detected
-    bool insert(int key, const V& value) { (void)key; (void)value; return false; }
+    // Add {key, value}. Returns false if the key is already there (no overwrite).
+    bool insert(int key, const V& value) {
+        if (buckets.size() == 0) {
+            init(1);    // init() was not called: use the smallest table
+        }
+        if (contains(key)) {
+            return false;
+        }
+        Entry e;
+        e.key = key;
+        e.value = value;
+        buckets[bucketOf(key)].pushBack(e);
+        entryCount++;
+        return true;
+    }
 
-    // TODO(Rabia): walk bucket h(key); on a match copy the value into `out`, return true.
-    // See: report Section 5.3   |   Done when: every inserted key is found with its value
-    bool find(int key, V& out) const { (void)key; (void)out; return false; }
+    // Copy the value of `key` into `out`. False if the key is not there.
+    bool find(int key, V& out) const {
+        if (buckets.size() == 0) {
+            return false;
+        }
+        const typename LinkedList<Entry>::Node* n = buckets[bucketOf(key)].first();
+        while (n != nullptr) {
+            if (n->value.key == key) {
+                out = n->value.value;
+                return true;
+            }
+            n = n->next;
+        }
+        return false;
+    }
 
-    // TODO(Rabia): true if `key` is present (can call find).
-    // See: report Section 5.3   |   Done when: contains() agrees with find()
-    bool contains(int key) const { (void)key; return false; }
+    bool contains(int key) const {
+        V dummy = V();
+        return find(key, dummy);
+    }
 
-    // TODO(Rabia): empty every bucket, entryCount = 0 (keep the bucket array).
-    // See: report Section 5.3   |   Done when: size() == 0 and old keys not found
-    void clear() {}
+    // Empty every bucket but keep the bucket array.
+    void clear() {
+        for (int i = 0; i < buckets.size(); i++) {
+            buckets[i].clear();
+        }
+        entryCount = 0;
+    }
 
     int size() const        { return entryCount; }
     int bucketCount() const { return buckets.size(); }
 
 private:
-    // TODO(Rabia): h(k) = k mod m, made non-negative for negative k.
-    // See: report Section 5.3   |   Done when: always returns 0..m-1
-    int bucketOf(int key) const { (void)key; return 0; }
+    // h(k) = k mod m, kept in 0..m-1 even for negative keys
+    int bucketOf(int key) const {
+        int m = buckets.size();
+        int h = key % m;
+        if (h < 0) {
+            h += m;
+        }
+        return h;
+    }
 
     DynamicArray<LinkedList<Entry>> buckets;
     int entryCount;
