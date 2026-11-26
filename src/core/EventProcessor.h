@@ -20,7 +20,7 @@ class EventProcessor {
 public:
     EventProcessor(World& world, IndexedMaxHeap& pending, Logger& log);
 
-    // TODO(Rabia): while world.events[world.nextEvent].time == t: apply it, log
+    // while world.events[world.nextEvent].time <= t: apply it, log
     // it, advance nextEvent. Set world.networkChangedThisStep if any road or
     // station status actually changed. Returns that flag.
     // See: report Sections 4.2 (phase 1) and 6.3   |   Done when: Scenario 04 events logged in the right order
@@ -29,7 +29,7 @@ public:
     int reassignmentCount() const { return reassignments; }   // requests released by ROBOT_OFFLINE
 
 private:
-    // TODO(Rabia): one handler per EventType (Report 6.3):
+    // one handler per EventType (Report 6.3):
     //   BLOCK / UNBLOCK      : env.block / env.unblock; warning if redundant.
     //   STATION_DOWN / UP    : env.setStationOpen; robots RECHARGING there stop
     //                          (Rerouter redirects them in phase 3).

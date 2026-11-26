@@ -51,41 +51,41 @@ public:
     DynamicArray<int>                  chargers;    // indices of CHARGING locations
     int networkVersion = 0;                         // +1 on every UNBLOCK (Report 5.9)
 
-    // TODO(Rabia): append the location, append an empty adjacency list for it,
+    // append the location, append an empty adjacency list for it,
     // and if it is CHARGING add its index to `chargers`. Return its index.
     // See: report Section 5.4   |   Done when: index == locations.size()-1 afterwards
     int addLocation(const Location& loc);
 
-    // TODO(Rabia): append the connection (a, b already converted to indices) and
+    // append the connection (a, b already converted to indices) and
     // add AdjEntry{b, c} to adjacency[a] and AdjEntry{a, c} to adjacency[b].
     // Return its index.
     // See: report Section 5.4   |   Done when: the road appears in both endpoints' lists
     int addConnection(const Connection& conn);
 
-    // TODO(Rabia): set status BLOCKED. Return false (no change) if it was already
+    // set status BLOCKED. Return false (no change) if it was already
     // blocked: the caller logs the redundant-event warning.
     // See: report Sections 5.4 and 6.3   |   Done when: blocking one road hides it both ways
     bool block(int connIndex);
 
-    // TODO(Rabia): set status OPEN and increment networkVersion. Return false
+    // set status OPEN and increment networkVersion. Return false
     // (no change, no version bump) if it was already open.
     // See: report Sections 5.9 and 6.3   |   Done when: unreachable requests are retried after this
     bool unblock(int connIndex);
 
-    // TODO(Rabia): status == OPEN.
+    // status == OPEN.
     // See: report Section 6.1   |   Done when: Router skips blocked roads
     bool isOpen(int connIndex) const;
 
-    // TODO(Rabia): set stationOpen on a CHARGING location. Return false if the
+    // set stationOpen on a CHARGING location. Return false if the
     // location is not a charger or the flag already had that value.
     // See: report Section 6.3 (STATION_DOWN/UP)   |   Done when: redundant STATION_DOWN returns false
     bool setStationOpen(int locIndex, bool open);
 
-    // TODO(Rabia): type == CHARGING and stationOpen.
+    // type == CHARGING and stationOpen.
     // See: report Section 4.5   |   Done when: a down station is never chosen as nearest charger
     bool isOpenCharger(int locIndex) const;
 
-    // TODO(Rabia): empty every array, networkVersion = 0.
+    // empty every array, networkVersion = 0.
     // See: report Section 5.4   |   Done when: a second load starts from an empty map
     void clear();
 

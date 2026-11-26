@@ -33,7 +33,7 @@ class ScenarioLoader {
 public:
     static const int MAX_TOKENS = 16;   // more fields than this on one line is an error anyway
 
-    // TODO(Rabia): clear previous messages and `world`; read the file line by
+    // clear previous messages and `world`; read the file line by
     // line; parse PARAM / sections; validate every record (Report 9.4);
     // resolve references (IDs -> indices); stable-sort requests and events by
     // time (MergeSort); fill robotsById; build the ID -> index maps; init
@@ -46,17 +46,18 @@ public:
     const LoadMessage& error(int i) const   { return errors[i]; }
     const LoadMessage& warning(int i) const { return warnings[i]; }
 
-    // TODO(Rabia): print "line <n>: <text>" for every error, then every warning.
+    // print "error: line <n>: <text>" for every error, then
+    // "warning: line <n>: <text>" for every warning.
     // See: report Section 9.4   |   Done when: invalid_02 prints 18 errors + 1 warning (E18, Report 9.4)
     void printMessages(ostream& out) const;
 
     // Split `line` on spaces/tabs into tokens[0..n-1]; returns n (no STL).
     // Public so test_loader can check it on its own.
-    // TODO(Rabia): handle multiple spaces and tabs; stop at MAX_TOKENS.
+    // handle multiple spaces and tabs; stop at MAX_TOKENS.
     // See: plan Section 4 (line tokenizer)   |   Done when: "  1   Junction_1 JUNCTION " gives 3 tokens
     static int tokenize(const Str& line, Str tokens[], int maxTokens);
 
-    // TODO(Rabia): whole-string integer parse (optional leading '-'); false on
+    // whole-string integer parse (optional leading '-'); false on
     // "", "12a", "3.5" or overflow.
     // See: report Section 9.4 ("non-numeric number")   |   Done when: parseInt("12a") is false
     static bool parseInt(const Str& s, int& out);
@@ -66,7 +67,7 @@ private:
     void addWarning(int line, const Str& text);
 
     // One parser per record kind; each validates its fields and adds errors.
-    // TODO(Rabia): implement each (fields, ranges, enum spellings, duplicates).
+    // Each checks its record (fields, ranges, enum spellings, duplicates).
     // See: report Sections 9.2 and 9.4
     void parseParam(int line, Str tokens[], int n, World& world);
     void parseLocation(int line, Str tokens[], int n, World& world);
@@ -77,10 +78,10 @@ private:
 
     // After reading: cross-checks that need the whole file (event references,
     // station events on CHARGING only, events after max_steps -> warning).
-    // TODO(Rabia): implement. See: report Section 9.4
+    // See: report Section 9.4
     void validateReferences(World& world);
 
-    // TODO(Rabia): mergeSort requests and events by time; build robotsById
+    // mergeSort requests and events by time; build robotsById
     // (mergeSort of indices by robot ID); rebuild requestIndex after the sort.
     // See: report Section 5.7   |   Done when: Scenario 04 events come out in time order, ties in file order
     void sortAndIndex(World& world);

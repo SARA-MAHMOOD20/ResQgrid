@@ -19,36 +19,77 @@
 template <typename T>
 class MinHeap {
 public:
-    // TODO(Rabia): append at the end, then siftUp from the last index.
-    // See: report Section 5.5   |   Done when: pops in sorted order
-    void push(const T& value) { (void)value; }
+    void push(const T& value) {
+        items.push_back(value);
+        siftUp(items.size() - 1);
+    }
 
-    // TODO(Rabia): if empty return false; copy root into `out`, move the last
-    // element to the root, items.pop_back(), siftDown(0), return true.
-    // See: report Section 5.5   |   Done when: pops in sorted order
-    bool popMin(T& out) { (void)out; return false; }
+    // Remove the smallest element into `out`. False if the heap is empty.
+    bool popMin(T& out) {
+        if (items.size() == 0) {
+            return false;
+        }
+        out = items[0];
+        items[0] = items[items.size() - 1];   // last element goes to the root
+        items.pop_back();
+        if (items.size() > 0) {
+            siftDown(0);
+        }
+        return true;
+    }
 
-    // TODO(Rabia): copy the smallest element into `out` without removing it; false if empty.
-    // See: report Section 5.5   |   Done when: top() equals the next popMin()
-    bool top(T& out) const { (void)out; return false; }
+    bool top(T& out) const {
+        if (items.size() == 0) {
+            return false;
+        }
+        out = items[0];
+        return true;
+    }
 
-    // TODO(Rabia): make the heap empty (reused by every Dijkstra run).
-    // See: report Section 8 (space: one Dijkstra run, reused)   |   Done when: isEmpty() after clear()
-    void clear() {}
+    void clear() { items.clear(); }
 
-    // TODO(Rabia): return whether the heap holds no elements.
-    // See: report Section 5.5   |   Done when: false after push, true after popping everything
-    bool isEmpty() const { return true; }
+    bool isEmpty() const { return items.size() == 0; }
 
-    // TODO(Rabia): number of elements currently in the heap.
-    // See: report Section 5.5   |   Done when: grows by 1 per push, shrinks by 1 per popMin
-    int size() const { return 0; }
+    int size() const { return items.size(); }
 
 private:
-    // TODO(Rabia): standard sift-up / sift-down using `<`.
-    // See: report Section 5.5   |   Done when: heap property holds after every push/pop
-    void siftUp(int i)   { (void)i; }
-    void siftDown(int i) { (void)i; }
+    // move item i up while it is smaller than its parent
+    void siftUp(int i) {
+        while (i > 0) {
+            int parent = (i - 1) / 2;
+            if (items[i] < items[parent]) {
+                T tmp = items[i];
+                items[i] = items[parent];
+                items[parent] = tmp;
+                i = parent;
+            } else {
+                break;
+            }
+        }
+    }
+
+    // move item i down while a child is smaller than it
+    void siftDown(int i) {
+        int n = items.size();
+        while (true) {
+            int left = 2 * i + 1;
+            int right = 2 * i + 2;
+            int smallest = i;
+            if (left < n && items[left] < items[smallest]) {
+                smallest = left;
+            }
+            if (right < n && items[right] < items[smallest]) {
+                smallest = right;
+            }
+            if (smallest == i) {
+                break;
+            }
+            T tmp = items[i];
+            items[i] = items[smallest];
+            items[smallest] = tmp;
+            i = smallest;
+        }
+    }
 
     DynamicArray<T> items;
 };
